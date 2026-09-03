@@ -78,7 +78,7 @@ async def upload_video(
     fut = asyncio.get_event_loop().create_future()
     bridge._pending[rid] = fut
 
-    await bridge._ws.send(json.dumps({
+    msg = {
         "id": rid,
         "method": "trpc_request",
         "params": {
@@ -90,7 +90,17 @@ async def upload_video(
                 "X-Upload-Content-Length": str(video_size),
             },
         },
-    }))
+    }
+    client_id = bridge.get_any_client() if hasattr(bridge, "get_any_client") else None
+    if client_id:
+        await bridge.send_message_to(client_id, msg)
+    elif hasattr(bridge, "_ws") and bridge._ws:
+        if hasattr(bridge._ws, "send_text"):
+            await bridge._ws.send_text(json.dumps(msg))
+        else:
+            await bridge._ws.send(json.dumps(msg))
+    else:
+        await bridge.send_message(msg)
 
     try:
         r = await asyncio.wait_for(fut, timeout=20)
@@ -102,7 +112,11 @@ async def upload_video(
     if own_bridge:
         await bridge.close()
 
-    session_url = r.get("data", {}).get("sessionUrl", "")
+    log.info("trpc_request response: %r", r)
+    data_dict = r.get("data") if isinstance(r, dict) else {}
+    if not isinstance(data_dict, dict):
+        data_dict = {}
+    session_url = data_dict.get("sessionUrl", "")
     auth_token = token or ""
 
     if not session_url:

@@ -720,15 +720,51 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
                 project_id=project_id,
             )
         if ref_media_ids:
-            ref_media_ids = [
-                await resolve_media_reference(
+            resolved_refs = []
+            for ref in ref_media_ids:
+                ref_str = str(ref or "").strip()
+                # Check if it is a local video file
+                if os.path.isfile(ref_str):
+                    ext = os.path.splitext(ref_str)[1].lower()
+                    if ext in {".mp4", ".mov", ".webm", ".mkv"}:
+                        frame_path = os.path.join(OUTPUT_DIR, f"extracted_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg")
+                        proc = await asyncio.create_subprocess_exec(
+                            "ffmpeg", "-y", "-ss", "00:00:00.1", "-i", ref_str,
+                            "-vframes", "1", frame_path,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                        )
+                        await proc.communicate()
+                        if os.path.isfile(frame_path):
+                            from flow_engine.generators.i2v import upload_image
+                            img_mid = await upload_image(active_bridge, frame_path, project_id)
+                            resolved_refs.append(img_mid)
+                            continue
+
+                mid = await resolve_media_reference(
                     ref,
                     active_bridge,
-                    expected_type="image",
+                    expected_type=None,
                     project_id=project_id,
                 )
-                for ref in ref_media_ids
-            ]
+                # If resolved media is a video in history, extract keyframe for Flow ingredients
+                rec = _history_api().find_history(media_id=mid) or _history_api().find_history(filename=mid)
+                if rec and rec.get("type") == "video":
+                    vpath = _history_local_asset(rec)
+                    if vpath and os.path.isfile(vpath):
+                        frame_path = os.path.join(OUTPUT_DIR, f"extracted_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg")
+                        proc = await asyncio.create_subprocess_exec(
+                            "ffmpeg", "-y", "-ss", "00:00:00.1", "-i", vpath,
+                            "-vframes", "1", frame_path,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                        )
+                        await proc.communicate()
+                        if os.path.isfile(frame_path):
+                            from flow_engine.generators.i2v import upload_image
+                            img_mid = await upload_image(active_bridge, frame_path, project_id)
+                            resolved_refs.append(img_mid)
+                            continue
+                resolved_refs.append(mid)
+            ref_media_ids = resolved_refs
     except MediaNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
