@@ -30,6 +30,7 @@ class VideoGenerationRequest(BaseModel):
     end_media_id: Optional[str] = Field(None, description="Optional pre-uploaded end image media ID (requires start_media_id or image_base64)")
     is_video: Optional[bool] = Field(False, description="True if the pre-uploaded reference is a video")
     seed: Optional[int] = Field(None, ge=0, le=4294967295, description="Optional explicit generation seed")
+    model: Optional[str] = Field(None, description="Video model name or alias (e.g. omni_flash, omni, veo_3_1_fast, veo_3_1_quality)")
     video_model: Optional[str] = Field(None, description="Optional Flow videoModelKey override")
     resolution: Optional[str] = Field(
         None,

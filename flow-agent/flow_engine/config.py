@@ -133,6 +133,49 @@ MODELS = {
     "edit": "abra_edit",
 }
 
+# Accepted video model aliases and their canonical mappings:
+# - omni_flash / omni / flash -> abra_t2v_{duration}s
+# - veo_3_1_fast / veo_fast / fast -> veo_3_1_fast
+# - veo_3_1_quality / veo_quality / quality -> veo_3_1_quality
+# - veo_3_1_lite / veo_lite / lite -> veo_3_1_lite
+VIDEO_MODELS = {
+    "omni_flash": "omni_flash",
+    "omni-flash": "omni_flash",
+    "omni": "omni_flash",
+    "flash": "omni_flash",
+    "veo_3_1_fast": "veo_3_1_fast",
+    "veo_fast": "veo_3_1_fast",
+    "fast": "veo_3_1_fast",
+    "veo_3_1_quality": "veo_3_1_quality",
+    "veo_quality": "veo_3_1_quality",
+    "quality": "veo_3_1_quality",
+    "veo_3_1_lite": "veo_3_1_lite",
+    "veo_lite": "veo_3_1_lite",
+    "lite": "veo_3_1_lite",
+}
+
+
+def resolve_video_model(model_name: str | None, duration: int = 10) -> str:
+    """Resolve a user-facing or alias video model name to Google Flow's internal wire key.
+
+    - omni_flash / omni-flash / omni / flash maps to abra_t2v_{duration}s
+    - veo_* models map to their respective veo_3_1_* keys
+    - None defaults to abra_t2v_{duration}s
+    """
+    if not model_name:
+        return f"abra_t2v_{duration}s"
+    norm = model_name.strip().lower().replace("-", "_")
+    if norm in {"omni", "omni_flash", "flash"}:
+        return f"abra_t2v_{duration}s"
+    if norm in {"veo_3_1_fast", "veo_fast", "fast"}:
+        return "veo_3_1_fast"
+    if norm in {"veo_3_1_quality", "veo_quality", "quality"}:
+        return "veo_3_1_quality"
+    if norm in {"veo_3_1_lite", "veo_lite", "lite"}:
+        return "veo_3_1_lite"
+    return model_name
+
+
 # ─── Video upsampling (native generation is 720p) ─────────────
 # Flow generates video at 720p and reaches 1080p/4K through a second
 # "upsampler" pass on the finished media, exactly like the Flow UI's

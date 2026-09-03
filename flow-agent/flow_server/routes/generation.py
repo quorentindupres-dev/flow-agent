@@ -789,6 +789,7 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
 
     try:
         # Submit generation
+        target_video_model = req.model or req.video_model
         if is_video_input and image_media_id:
             from flow_engine.generators.v2v import edit_video
             media_ids = await edit_video(active_bridge, req.prompt, aspect_key, project_id, image_media_id, duration=req.duration, ref_media_ids=ref_media_ids or None)
@@ -804,17 +805,17 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
                 duration=req.duration,
                 count=generation_count,
                 seed=req.seed,
-                video_model=req.video_model,
+                video_model=target_video_model,
             )
         elif ref_media_ids:
             from flow_engine.generators.i2v import generate_video_r2v
-            media_ids = await generate_video_r2v(active_bridge, req.prompt, aspect_key, project_id, ref_media_ids, duration=req.duration, count=generation_count, seed=req.seed, video_model=req.video_model)
+            media_ids = await generate_video_r2v(active_bridge, req.prompt, aspect_key, project_id, ref_media_ids, duration=req.duration, count=generation_count, seed=req.seed, video_model=target_video_model)
         elif image_media_id:
             from flow_engine.generators.i2v import generate_video_i2v
-            media_ids = await generate_video_i2v(active_bridge, req.prompt, aspect_key, project_id, image_media_id, duration=req.duration, count=generation_count, seed=req.seed, video_model=req.video_model)
+            media_ids = await generate_video_i2v(active_bridge, req.prompt, aspect_key, project_id, image_media_id, duration=req.duration, count=generation_count, seed=req.seed, video_model=target_video_model)
         else:
             from flow_engine.generators.t2v import generate_video
-            media_ids = await generate_video(active_bridge, req.prompt, aspect_key, project_id, duration=req.duration, count=generation_count, seed=req.seed, video_model=req.video_model)
+            media_ids = await generate_video(active_bridge, req.prompt, aspect_key, project_id, duration=req.duration, count=generation_count, seed=req.seed, video_model=target_video_model)
     except Exception as e:
         if temp_img_path and os.path.exists(temp_img_path):
             try:

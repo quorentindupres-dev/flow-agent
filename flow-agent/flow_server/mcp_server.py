@@ -295,7 +295,7 @@ def handle_tools_list(request_id):
                     },
                     "video_model": {
                         "type": "string",
-                        "description": "Override the Flow videoModelKey (defaults to abra_t2v_<duration>s)"
+                        "description": "Video model name or key (e.g. 'omni_flash', 'veo_3_1_fast', 'veo_3_1_quality', or 'abra_t2v_<duration>s')"
                     },
                     "resolution": {
                         "type": "string",

@@ -3,7 +3,7 @@
 import logging
 import random
 
-from ..config import ENDPOINTS
+from ..config import ENDPOINTS, resolve_video_model
 from .common import build_client_context, build_generation_context, resolve_seed
 
 log = logging.getLogger("flow_engine.generators.t2v")
@@ -13,7 +13,7 @@ async def generate_video(bridge, prompt: str, aspect: str, project_id: str,
                          duration: int = 10, count: int = 1,
                          seed: int = None, video_model: str = None) -> list[str] | None:
     """Submit T2V generation request. Returns list of media_ids."""
-    model_key = video_model or f"abra_t2v_{duration}s"
+    model_key = resolve_video_model(video_model, duration)
 
     requests = []
     for i in range(count):
