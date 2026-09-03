@@ -680,13 +680,11 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
         balance = None
 
     if balance is not None:
-        affordable = balance // cost_each
-        if affordable < 1:
-            raise HTTPException(
-                status_code=402,
-                detail=f"Not enough credits: {balance} left, but a {req.duration}s video costs {cost_each}.",
-            )
+        affordable = max(1, balance // cost_each)
+        if balance < cost_each:
+            log.warning("Low balance: %d left, video costs %d. Passing upstream to let Flow decide.", balance, cost_each)
         if req.n > affordable:
+            generation_count = affordable
             log.warning(
                 "Requested %d videos but only %d affordable (%d credits / %d each); capping to %d.",
                 req.n, affordable, balance, cost_each, affordable,
@@ -731,7 +729,7 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
                         proc = await asyncio.create_subprocess_exec(
                             "ffmpeg", "-y", "-ss", "00:00:00.1", "-i", ref_str,
                             "-vframes", "1", frame_path,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                         )
                         await proc.communicate()
                         if os.path.isfile(frame_path):
@@ -739,6 +737,11 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
                             img_mid = await upload_image(active_bridge, frame_path, project_id)
                             resolved_refs.append(img_mid)
                             continue
+                    elif ext in {".png", ".jpg", ".jpeg", ".webp"}:
+                        from flow_engine.generators.i2v import upload_image
+                        img_mid = await upload_image(active_bridge, ref_str, project_id)
+                        resolved_refs.append(img_mid)
+                        continue
 
                 mid = await resolve_media_reference(
                     ref,
@@ -755,7 +758,7 @@ async def _generate_video(req: VideoGenerationRequest, x_client_id: Optional[str
                         proc = await asyncio.create_subprocess_exec(
                             "ffmpeg", "-y", "-ss", "00:00:00.1", "-i", vpath,
                             "-vframes", "1", frame_path,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                         )
                         await proc.communicate()
                         if os.path.isfile(frame_path):
